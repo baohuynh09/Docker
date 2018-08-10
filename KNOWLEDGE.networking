@@ -1,0 +1,98 @@
+#------------------------------#
+#        docker network        #
+#------------------------------#
+
+Docker has thier own loopback interface
+       has another interface to connect with virtual interface in the host's namespace
+Docker bridge is "docker0" - where all connections are routed through
+
+
+
+#----------------------------------------------------------------------#
+#     Four network container archetypes in container-host model        #
+#----------------------------------------------------------------------#
+
+1) Closed containers: (-net none)
+---------------------
+- Strongest security 
+- Completely no inbound/outbound, only loopback
+- Use cases: run program to generate random password (no network -> stay away from being thef)
+
+
+2) Bridged containers (default):
+--------------------------------
+- Have an interface connect to docker0 (docker bridge)
+
+
+3) Joined containers:
+
+4) Open containers: (does not connect through docker0 - docker engine)
+
+
+#----------------------------------------------#
+#    Service discovery in container cluster    #
+#----------------------------------------------#
+
+- key-value store is used to store information about containers member in a cluster --> integrate into service discovery
+- Service discovery work between container instead of mapping by themself
+- More details covers in Docker swarm ???
+
+
+#----------------------------------------------#
+#           Container linking                  #
+#----------------------------------------------#
+
+- Having source-recipient relationship >>> secure data transfer between containers
+without expose to HOST environment
+
+- Expose and transpent VARIABLE between containers environment 
+(NAME, ENV, PORT) with pre-fix <ALIAS>_...
+    Ex: 
+    1) Dockerfile for Jenkins:
+        .......
+        ENV BOOK="Learning Docker" \
+        CHAPTER="Orchestrating Containers"
+        .......
+    2) docker run --name=jenkins_src -p 8080:5000 jenkins
+    3) docker run --name=myapp --link jenkins_src:jenkins_alias ubuntu:18.04 /bin/bash
+    4) SC-1#~ env 
+        jenkins_alias_NAME=/stoic_hawking/jenkins_alias
+        .......
+        jenkins_alias_ENV_BOOK=Learning Docker
+        jenkins_alias_ENV_CHAPTER=Orchestrating Containers
+        ......
+        jenkins_alias_PORT=tcp://172.17.0.4:80
+        jenkins_alias_PORT_80_TCP=tcp://172.17.0.4:80
+        jenkins_alias_PORT_80_TCP_ADDR=172.17.0.4
+        jenkins_alias_PORT_80_TCP_PORT=80
+        jenkins_alias_PORT_80_TCP_PROTO=tcp
+        jenkins_alias_PORT_8080_TCP=tcp://172.17.0.4:8080
+        jenkins_alias_PORT_8080_TCP_ADDR=172.17.0.4
+        jenkins_alias_PORT_8080_TCP_PORT=8080
+        jenkins_alias_PORT_8080_TCP_PROTO=tcp
+        
+    5) SC-1#~ cat /etc/hosts   <--- (local DNS, lookup before using internet DNS)
+        .....
+        jenkins_alias   172.17.0.4   
+    6) SC-1#~ ping -c 2 jenkins_alias >>> OK (could recognize domain name)
+        
+#----------------------------------------------#
+#                   DNS                        #
+#----------------------------------------------#
+When linking container-container 
+>>> A record for local DNS is added to /etc/host
+(so dest-container know to reach source-container)
+
+#----------------------------------------------#
+#     Orchestration container tools            #
+#----------------------------------------------#        
+- Docker compose:
+  Mange many containers at the level of single host.
+- Docker swarm:
+  Manage many containers/services at the level of multi-host.
+
+
+
+
+
+
