@@ -1,0 +1,70 @@
+#--------------------------------------------------#
+#         Container - Open to the worlds ?		   #
+#--------------------------------------------------#
+Container has many pros over the virtualization but also have cons:
++---------------------------------+---------------------------------+
+|            Docker               |        Virtualization           |
++-------------------------------------------------------------------+
+|                                 |                                 |
+| - IPC mechanism (manage as      | - Any access to process/resource|
+|   multiple process on the       |   must go through the hypervisor|
+|   same host(share kernel)       |   (even firewall + guest OS)    |
+|                                 |                                 |
+| - If someone controls/access    |                                 |
+|   host then containers are under|                                 |
+|   under dangers (since container|                                 |
+|   is vulnerable as processes)   |                                 |
+|                                 |                                 |
++---------------------------------+---------------------------------+
+
+#--------------------------------------------------#
+#            Resource isolation					   #
+#--------------------------------------------------#
+Using kernel 'namespaces':
+• The PID namespace: This is used for a series of actions taken in order to
+achieve process-level isolation
+• The Network namespace: gain executive control over network interfaces
+• The IPC namespace:     maintain control over access to IPC resources
+• The Mount namespace:   manage mount points
+• The UTS namespace:     segregate the kernel and version identifiers <?>
+
+#--------------------------------------------------#
+#            Resource controls					   #
+#--------------------------------------------------#
+Using kernel 'control group':
+• Control CPU,RAM,I/O,...to the containers to run
+
+#--------------------------------------------------#
+#		Practices to keep container secure		   #	
+#--------------------------------------------------#
+1. Using non-root user (USER in Dockerfile/-u with CLI)
+	# Add a new user "peter" with user id 7373
+	RUN useradd -u 7373 peter
+	# Change to non-root privilege
+	USER peter
+	uid=0(root) gid=0(root) groups=0(root)
+	
+	SC-1 #~ docker build –t nonrootimage .
+	SC-1 #~ docker run --rm nonrootimage id
+	>>> uid=7373(peter) gid=7373(peter) groups=7373(peter)
+	>>> this container is run with user(peter)
+	
+	
+			+-------> Mandatory Access Control (MAC)
+			|										
+2. Using SELinux----> Multi-Level security (MLS)   ----+
+   (KERNEL)	|										    |--> [protect container
+			+-------> Multi-Category security (MCS) ---+     from other containers]
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
