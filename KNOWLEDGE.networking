@@ -12,23 +12,36 @@ Docker bridge is "docker0" - where all connections are routed through
 #     Four network container archetypes in container-host model        #
 #----------------------------------------------------------------------#
 
-1) Closed containers: (-net none)
----------------------
+1) Closed containers:     <<-net none>>
 - Strongest security 
 - Completely no inbound/outbound, only loopback
 - Use cases: run program to generate random password (no network -> stay away from being thef)
 
 
-2) Bridged containers (default):
---------------------------------
+2) Bridged containers    <<default/-net bridge>>
 - Have an interface connect to docker0 (docker bridge)
+- Use case: app inside container communicates with outside world.
 
+3) Joined containers:    <<-net container:<source_container_name> >>
+- Pros: 
+  + communication betwen containers are carried in protected channels.
 
-3) Joined containers:
+- Cons:
+  + Others (mount, CPU, RAM,..) still isolate, only share common network stack 
+    --> less security (!)
+  + If A-B are joined container, then all interfaces of A will be shared to B
+  + Potential conflict ports if using same application (!)
 
-4) Open containers: (does not connect through docker0 - docker engine)
+- Use cases: 
+  + Containers use loopback interface for communication
+  + Cont.A modify joined-network stack, B also use that modification
+  + Cont.A 'monitors' traffic in cont.B (on all shared interface)
+  
 
-
+4) Open containers: (does not connect through docker0 - docker engine) <<-net host>>
+- Totally dangerous
+- Use cases:
+  + App binds directly to port on host (<1024)
 #----------------------------------------------#
 #    Service discovery in container cluster    #
 #----------------------------------------------#
@@ -71,17 +84,84 @@ without expose to HOST environment
         jenkins_alias_PORT_8080_TCP_PORT=8080
         jenkins_alias_PORT_8080_TCP_PROTO=tcp
         
-    5) SC-1#~ cat /etc/hosts   <--- (local DNS, lookup before using internet DNS)
+    5) SC-1#~ cat /etc/hosts   <--- (manual hostname-IP mapping done by link-container, 
+                             since jenkins_alias is not recored in any DNS)
         .....
         jenkins_alias   172.17.0.4   
     6) SC-1#~ ping -c 2 jenkins_alias >>> OK (could recognize domain name)
         
 #----------------------------------------------#
-#                   DNS                        #
-#----------------------------------------------#
-When linking container-container 
+#          DNS inside container                #
+-----------------------------------------------#
+A) Two ways to know IP mapping with hostname:
+
++ Using public DNS servers: /etc/resolv.conf 
+  Ex: google-server 8.8.8.8
+      yahoo-server  9.9.9.9
+      
++ Using host mapping manually (in case those hostname are not 
+  publicly recoreded on DNS server): /etc/hosts
+  Ex 127.10.20.30   mycontainer
+     136.29.30.128  neighbor-apache-container
+  Checkby using nslookup cmd
+
+B) When linking container-container 
 >>> A record for local DNS is added to /etc/host
-(so dest-container know to reach source-container)
+(so dest-container know to rach source-container)
+
+C) More interesting stuffs to DNS
+- Set primary-DNS when start container (--dns):
+  root@x:~ docker run --dns 8.8.8.8 alpine nslookup docker.com
+  
+- Look sub-domain (registry) in an given domain (docker.com) (option --dns-search)
+  root@x:~ docker run --dns-search docker.com busybox nslookup registry
+  >>> will look for domain "registry.docker.com"
+  
+- Manually mapping hostname with ip (--hostname/--ad-host)
+  root@x:~ docker run --hostname mycontainer --add-host test:10.10.10.2 alpine cat /etc/hosts
+  >>> /etc/hosts:
+      172.10.20.30  mycontainer 
+      10.10.10.2    test
+  
+#----------------------------------------------#
+#       Inter-container communication          #    
+#----------------------------------------------#        
+By default, all container is connected to docker0 (common bridge)
++ Pros: Good practices for pipeline data transfer between containers
++ Cons: container is open at attack risk (!!!)
+        Ex: docker run -it dockerinaction/ch5_nmap -sS -p 3333 172.17.0.0/24
+        --> using nmap to search all containers listenning on port 3333
+        --> potential danger on port 3333 (!!!)
+>>> Disable ICC (inter-container communication) when starting:
+        --> docker -d --icc=false ...
+>>> Then using linking-container for intentional data transfer
+
+#----------------------------------------------#
+#   Don't like bridge0 ? Create your own now   #
+#----------------------------------------------#  
+Reasons to creating your own brdige:
++ User-defined bridge provide better network isolation btw containers
+  (conts. connected to user-defined automatically exposed "all ports" to each others,
+  but "no ports" to the outside world)
+  
++ Provide automatic DNS resolution btw containers
+  If using default bridge, we have to use --link or manual add /etc/hosts
+  for container to know each others.
++ Attach/detach network on-the-fly
++ Customize characteristic (MTU, iptables rule,..) for user-defined bridge
++ Shared variables btw containers (used to provide by --link) could be fixed by:
+  >>> Using docker volume to store a file containing all variables
+  >>> Using docker-compose to host global variables
+  >>> Docker swarm -> use built-in "shared secrets/configs"
+  
+
+■  Create user-defined network (bridge)
+   docker create baohuynh_net1
+■  Connect a container to a user-defined bridge  
+   docker create --network baohuynh_net1 --publish 8080:80  nginx:latest
+   --> run app nginx on their bridge baohuynh_net1 & export only port 80 for outside world
+   --> any containers using baohuynh_net1 will see all port opening on nginx
+
 
 #----------------------------------------------#
 #     Orchestration container tools            #
@@ -92,7 +172,26 @@ When linking container-container
   Manage many containers/services at the level of multi-host.
 
 
+#----------------------------------------------#
+#     Overlay network (Docker swarm)           #
+#----------------------------------------------#        
+Overlay network: 
+- create distributed network among docker daemon hosts (multiple hosts).
+- sits on top of virtual network on each hosts
+  
+Sub component:
+- Ingress : "control" traffic flows btw containers on multi-hosts.
+- docker_gwbrdige bridge network: "connects" individual Docker daemon to others in the swarm (like a gateway)
+  
+  
+  
+-p 8080:80 Map TCP port 80 on the service to port 8080 on the routing mesh.
 
-
+- routing mesh ???
+  An routing layer that connects all container on multi-hosts
+  --> data for "control" and "connect" will go through the same channel (seperate by using
+  --advertise-addr/-datapath-addr & put them on different networks)
+  
+  HTTP routing-mesh
 
 

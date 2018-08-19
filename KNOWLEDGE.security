@@ -1,5 +1,5 @@
 #--------------------------------------------------#
-#         Container - Open to the worlds ?		   #
+#         Container - Open to the worlds ?         #
 #--------------------------------------------------#
 Container has many pros over the virtualization but also have cons:
 +---------------------------------+---------------------------------+
@@ -18,7 +18,7 @@ Container has many pros over the virtualization but also have cons:
 +---------------------------------+---------------------------------+
 
 #--------------------------------------------------#
-#            Resource isolation					   #
+#            Resource isolation                    #
 #--------------------------------------------------#
 Using kernel 'namespaces':
 • The PID namespace: This is used for a series of actions taken in order to
@@ -29,42 +29,36 @@ achieve process-level isolation
 • The UTS namespace:     segregate the kernel and version identifiers <?>
 
 #--------------------------------------------------#
-#            Resource controls					   #
+#            Resource controls                     #
 #--------------------------------------------------#
 Using kernel 'control group':
 • Control CPU,RAM,I/O,...to the containers to run
 
 #--------------------------------------------------#
-#		Practices to keep container secure		   #	
+#       Practices to keep container secure         #    
 #--------------------------------------------------#
 1. Using non-root user (USER in Dockerfile/-u with CLI)
-	# Add a new user "peter" with user id 7373
-	RUN useradd -u 7373 peter
-	# Change to non-root privilege
-	USER peter
-	uid=0(root) gid=0(root) groups=0(root)
-	
-	SC-1 #~ docker build –t nonrootimage .
-	SC-1 #~ docker run --rm nonrootimage id
-	>>> uid=7373(peter) gid=7373(peter) groups=7373(peter)
-	>>> this container is run with user(peter)
-	
-	
-			+-------> Mandatory Access Control (MAC)
-			|										
+    # Add a new user "peter" with user id 7373
+    RUN useradd -u 7373 peter
+    # Change to non-root privilege
+    USER peter
+    uid=0(root) gid=0(root) groups=0(root)
+    
+    SC-1 #~ docker build –t nonrootimage .
+    SC-1 #~ docker run --rm nonrootimage id
+    >>> uid=7373(peter) gid=7373(peter) groups=7373(peter)
+    >>> this container is run with user(peter)
+    
+    
+            +-------> Mandatory Access Control (MAC)
+            |                                       
 2. Using SELinux----> Multi-Level security (MLS)   ----+
-   (KERNEL)	|										    |--> [protect container
-			+-------> Multi-Category security (MCS) ---+     from other containers]
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
+   (KERNEL) |                                           |--> [protect container
+            +-------> Multi-Category security (MCS) ---+     from other containers]
+
+
+
+3. Disable ICC (inter-container communication) +
+   Linking container -> avoid expose data transfer/ports to host
+
+
